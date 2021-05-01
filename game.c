@@ -11,11 +11,6 @@ void init_game(game_t* game) {
 
 void reset_game(game_t* game) {
   memset(game->board, '\0', game->size * game->size * sizeof(player_t));
-  // for (int i = 0; i < game->size; ++i) {
-  //   for (int j = 0; j < game->size; ++j) {
-  //     game->board[i * game->size + j] = PLAYER_NULL;
-  //   }
-  // }
   game->current_player = PLAYER_X;
   game->state = STATE_RUNNING;
 }
@@ -28,80 +23,172 @@ void update_current_player(game_t* game) {
   }
 }
 
-int check_win_condition(const game_t* game, const player_t* player) {
-  int row_count = 0;
-  int column_count = 0;
-  int diag1_count = 0;
-  int diag2_count = 0;
+player_t check_win_condition(game_t* game) {
+  int x_row_count = 0;
+  int x_column_count = 0;
+
+  int o_row_count = 0;
+  int o_column_count = 0;
+
+  int x_diag11_count = 0;
+  int x_diag12_count = 0;
+  int x_diag21_count = 0;
+  int x_diag22_count = 0;
+
+  int o_diag11_count = 0;
+  int o_diag12_count = 0;
+  int o_diag21_count = 0;
+  int o_diag22_count = 0;
+
   int total_filled = 0;
 
   for (int i = 0; i < game->size; ++i) {
     for (int j = 0; j < game->size; ++j) {
-      if (game->board[i * game->size + j] == *player) {
-        row_count++;
-      } else if (game->board[i * game->size + j] == PLAYER_NULL) {
-        total_filled++;
-        row_count = 0;
-      } else {
-        row_count = 0;
+      switch (game->board[i * game->size + j]) {
+        case PLAYER_X:
+          x_row_count++;
+          o_row_count = 0;
+          break;
+        case PLAYER_O:
+          x_row_count = 0;
+          o_row_count++;
+          break;
+        default:
+          total_filled++;
+          x_row_count = 0;
+          o_row_count = 0;
+          break;
       }
 
-      if (game->board[j * game->size + i] == *player) {
-        column_count++;
-      } else {
-        column_count = 0;
+      switch (game->board[j * game->size + i]) {
+        case PLAYER_X:
+          x_column_count++;
+          o_column_count = 0;
+          break;
+        case PLAYER_O:
+          x_column_count = 0;
+          o_column_count++;
+          break;
+        default:
+          x_column_count = 0;
+          o_column_count = 0;
+          break;
       }
 
-      if (row_count >= game->win || column_count >= game->win) {
-        return 1;
+      if (x_row_count >= game->win || x_column_count >= game->win) {
+        game->state = STATE_WINNING;
+        return PLAYER_X;
+      }
+
+      if (o_row_count >= game->win || o_column_count >= game->win) {
+        game->state = STATE_WINNING;
+        return PLAYER_O;
+      }
+
+      if (i + j > game->size - 1) break;
+
+      int last_index = game->size - 1;
+
+      switch (game->board[(i + j) * game->size + j]) {
+        case PLAYER_X:
+          x_diag11_count++;
+          o_diag11_count = 0;
+          break;
+        case PLAYER_O:
+          x_diag11_count = 0;
+          o_diag11_count++;
+          break;
+        default:
+          x_diag11_count = 0;
+          o_diag11_count = 0;
+          break;
+      }
+
+      switch (game->board[(i + j) * game->size + last_index - j]) {
+        case PLAYER_X:
+          x_diag21_count++;
+          o_diag21_count = 0;
+          break;
+        case PLAYER_O:
+          x_diag21_count = 0;
+          o_diag21_count++;
+          break;
+        default:
+          x_diag21_count = 0;
+          o_diag21_count = 0;
+          break;
+      }
+
+      if (x_diag11_count >= game->win || x_diag21_count >= game->win) {
+        game->state = STATE_WINNING;
+        return PLAYER_X;
+      }
+
+      if (o_diag11_count >= game->win || o_diag21_count >= game->win) {
+        game->state = STATE_WINNING;
+        return PLAYER_O;
+      }
+
+      if (i == 0) continue;
+
+      switch (game->board[j * game->size + (i + j)]) {
+        case PLAYER_X:
+          x_diag12_count++;
+          o_diag12_count = 0;
+          break;
+        case PLAYER_O:
+          x_diag12_count = 0;
+          o_diag12_count++;
+          break;
+        default:
+          x_diag12_count = 0;
+          o_diag12_count = 0;
+          break;
+      }
+
+      switch (game->board[(last_index - i - j) * game->size + j]) {
+        case PLAYER_X:
+          x_diag22_count++;
+          o_diag22_count = 0;
+          break;
+        case PLAYER_O:
+          x_diag22_count = 0;
+          o_diag22_count++;
+          break;
+        default:
+          x_diag22_count = 0;
+          o_diag22_count = 0;
+          break;
+      }
+
+      if (x_diag12_count >= game->win || x_diag22_count >= game->win) {
+        game->state = STATE_WINNING;
+        return PLAYER_X;
+      }
+
+      if (o_diag12_count >= game->win || o_diag22_count >= game->win) {
+        game->state = STATE_WINNING;
+        return PLAYER_O;
       }
     }
 
-    if (i > game->size - game->win) continue;
+    x_row_count = 0;
+    x_column_count = 0;
 
-    for (int j = 0; j < game->size; ++j) {
-      if (i + j >= game->size - 1) break;
-      SDL_Log("Current cell: (%d, %d) = %d\nCurrent diag: %d", i + j, j,
-              game->board[(i + j) * game->size + j], diag1_count);
-      if (game->board[(i + j) * game->size + j] == *player) {
-        diag1_count++;
-      } else {
-        diag1_count = 0;
-      }
+    o_row_count = 0;
+    o_column_count = 0;
 
-      if (diag1_count >= game->win) {
-        return 1;
-      }
-    }
+    x_diag11_count = 0;
+    x_diag12_count = 0;
+    x_diag21_count = 0;
+    x_diag22_count = 0;
 
-    // for (int sum = game->win - 1; sum <= game->size - game->win; ++sum) {
-    //   if (sum <= i) continue;
-    //   SDL_Log("Current cell: (%d, %d) = %d\nCurrent diag: %d", i, sum - i,
-    //           game->board[i * game->size + (sum - i)], diag2_count);
-    //   if (game->board[i * game->size + (sum - i)] == *player) {
-    //     diag2_count++;
-    //   } else {
-    //     diag2_count = 0;
-    //   }
-
-    //   if (diag2_count >= game->win) {
-    //     return 1;
-    //   }
-    // }
-    if (i < game->win - 1) continue;
-    for (int j = 0; j <= i; ++j) {
-      if (game->board[j * game->size + (i - j)] == *player) {
-        diag2_count++;
-      } else {
-        diag2_count = 0;
-      }
-
-      if (diag2_count >= game->win) {
-        return 1;
-      }
-    }
+    o_diag11_count = 0;
+    o_diag12_count = 0;
+    o_diag21_count = 0;
+    o_diag22_count = 0;
   }
 
-  if (total_filled == game->size * game->size) return -1;
-  return 0;
+  if (total_filled == game->size * game->size) game->state = STATE_TIE;
+  return PLAYER_NULL;
 }

@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <stdlib.h>
 
+#include "bot.h"
 #include "game.h"
 #include "rendering.h"
 
@@ -31,8 +32,9 @@ int main(int argc, char *argv[]) {
   // game parameters
 
   game_t game;
-  game.size = 6;
-  game.win = 3;
+  game.size = 20;
+  game.win = 4;
+  game.bot = 1;
   const int CELL_HEIGHT = (int)(SCREEN_HEIGHT / game.size);
   const int CELL_WIDTH = (int)(SCREEN_WIDTH / game.size);
   init_game(&game);
@@ -48,7 +50,8 @@ int main(int argc, char *argv[]) {
         if (e.type == SDL_QUIT) {
           game.state = STATE_QUIT;
         } else if (e.type == SDL_MOUSEBUTTONDOWN) {
-          SDL_Log("SDL_MOUSEBUTTONDOWN");
+          // click and render
+
           int cell_index = (int)(e.button.y / CELL_HEIGHT) * game.size +
                            (int)(e.button.x / CELL_WIDTH);
           if (game.board[cell_index] != PLAYER_NULL) continue;
@@ -56,11 +59,21 @@ int main(int argc, char *argv[]) {
           game.board[cell_index] = game.current_player;
           render_board(renderer, &game, CELL_HEIGHT, CELL_WIDTH);
           SDL_RenderPresent(renderer);
-          if (check_win_condition(&game, &game.current_player) == 1) {
-            game.state = STATE_WINNING;
-          } else if (check_win_condition(&game, &game.current_player) == 0) {
-            SDL_Log("Current player: %d", game.current_player);
+
+          // check win
+          if (check_win_condition(&game) == PLAYER_NULL &&
+              game.state != STATE_TIE) {
             update_current_player(&game);
+            if (game.bot != 0) {
+              int move = compute_bot_move(&game);
+              SDL_Log("bot move: %d", move);
+              game.board[move] = game.current_player;
+              render_board(renderer, &game, CELL_HEIGHT, CELL_WIDTH);
+              SDL_RenderPresent(renderer);
+              if (game.state == STATE_RUNNING) {
+                update_current_player(&game);
+              }
+            }
           }
         }
       }
@@ -91,7 +104,6 @@ int main(int argc, char *argv[]) {
       int button_id;
       SDL_ShowMessageBox(&message_box_data, &button_id);
       if (button_id == 0) {
-        SDL_Log("Reset");
         reset_game(&game);
       } else {
         game.state = STATE_QUIT;
